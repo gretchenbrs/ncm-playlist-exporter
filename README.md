@@ -8,13 +8,6 @@ One local website for:
 
 ## Setup
 
-```bash
-cd /Users/gretchen/Documents/New\ project/ncm-playlist-exporter
-export SPOTIFY_CLIENT_ID="your_client_id"
-export SPOTIFY_CLIENT_SECRET="your_client_secret"
-export SPOTIFY_REDIRECT_URI="http://127.0.0.1:8765/api/spotify/callback"
-python3 web_server.py
-```
 
 Open:
 

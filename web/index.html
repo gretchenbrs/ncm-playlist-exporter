@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NCM -> Spotify Tool</title>
+    <style>
+      :root {
+        --bg: #f2f4f8;
+        --card: #ffffff;
+        --text: #111827;
+        --muted: #6b7280;
+        --brand: #d33a31;
+        --brand-dark: #b82f28;
+        --line: #e5e7eb;
+        --ok: #059669;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: var(--text);
+        background: radial-gradient(circle at 10% -20%, #ffe7e3 0, #f7f8fb 45%, #eef2f8 100%);
+      }
+      .wrap {
+        max-width: 1180px;
+        margin: 34px auto;
+        padding: 0 18px;
+      }
+      .title { margin: 0; font-size: 30px; }
+      .subtitle { color: var(--muted); margin: 8px 0 22px; }
+      .grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: 1fr 1fr;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.04);
+      }
+      .card h2 { font-size: 18px; margin: 0 0 8px; }
+      .helper { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+      label { display: block; font-size: 14px; margin: 10px 0 6px; }
+      input {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 11px 12px;
+        font-size: 15px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .btn-primary { background: var(--brand); color: #fff; margin-top: 12px; }
+      .btn-primary:hover { background: var(--brand-dark); }
+      .btn-secondary { background: #eef2ff; color: #1f2937; }
+      .status {
+        margin-top: 12px;
+        min-height: 24px;
+        color: var(--muted);
+        font-size: 14px;
+        white-space: pre-wrap;
+      }
+      .result {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px dashed var(--line);
+        display: none;
+      }
+      .result a { color: var(--brand); text-decoration: none; margin-right: 12px; }
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th, td {
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        padding: 8px 4px;
+        vertical-align: middle;
+      }
+      .link { color: #1d4ed8; text-decoration: none; margin-right: 8px; }
+      .progress {
+        margin-top: 8px;
+        height: 10px;
+        background: #eef2f7;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .progress > div {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #ef4444, #f59e0b);
+        transition: width 0.2s;
+      }
+      .good { color: var(--ok); }
+      @media (max-width: 960px) {
+        .grid { grid-template-columns: 1fr; }
+        .row { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1 class="title">网易云歌单 -> Spotify 一体化工具</h1>
+      <p class="subtitle">输入歌单链接，网页内完成 Spotify 授权、匹配和导入。CSV 仅用于可选下载和存档。</p>
+
+      <div class="grid">
+        <section class="card">
+          <h2>1. 导出歌单（可选）</h2>
+          <p class="helper">如果你只想一键导入 Spotify，可以跳过这一步，直接看右侧。</p>
+
+          <label for="playlistInput">歌单链接或 ID</label>
+          <input id="playlistInput" placeholder="例如 https://music.163.com/#/playlist?id=3778678" />
+          <button class="btn-primary" id="exportBtn">开始导出</button>
+
+          <div id="status" class="status"></div>
+
+          <div id="result" class="result">
+            <div id="summary"></div>
+            <a id="csvLink" href="#" target="_blank" rel="noreferrer">下载 CSV</a>
+            <a id="jsonLink" href="#" target="_blank" rel="noreferrer">下载 JSON</a>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>2. 直接导入 Spotify（推荐）</h2>
+          <p class="helper">需要你在服务端配置 `SPOTIFY_CLIENT_ID/SECRET`，并在 Spotify App 里设置回调 URL 为当前服务地址。</p>
+
+          <label for="spotifySource">歌单链接或 ID</label>
+          <input id="spotifySource" placeholder="粘贴网易云歌单链接" />
+
+          <div class="row">
+            <div>
+              <label for="spotifyName">Spotify 歌单名</label>
+              <input id="spotifyName" placeholder="例如 NetEase Import" />
+            </div>
+            <div>
+              <label for="throttleMs">节流(ms)</label>
+              <input id="throttleMs" value="260" />
+            </div>
+          </div>
+
+          <button class="btn-primary" id="startSpotifyBtn">连接 Spotify 并导入</button>
+          <div id="spotifyStatus" class="status"></div>
+
+          <div class="progress"><div id="progressBar"></div></div>
+
+          <div id="spotifyResult" class="result">
+            <a id="spotifyPlaylistLink" href="#" target="_blank" rel="noreferrer">打开 Spotify 歌单</a>
+            <a id="unmatchedLink" href="#" target="_blank" rel="noreferrer">下载未匹配歌曲</a>
+          </div>
+        </section>
+
+        <section class="card" style="grid-column: 1 / -1;">
+          <div class="toolbar">
+            <h2>3. 本地文件管理</h2>
+            <button id="refreshBtn" class="btn-secondary">刷新</button>
+          </div>
+          <p id="retentionText" class="helper"></p>
+
+          <table>
+            <thead>
+              <tr>
+                <th>文件名</th>
+                <th>大小</th>
+                <th>时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="fileTableBody"></tbody>
+          </table>
+          <div id="fileMsg" class="status"></div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      const input = document.getElementById("playlistInput");
+      const exportBtn = document.getElementById("exportBtn");
+      const statusEl = document.getElementById("status");
+      const resultEl = document.getElementById("result");
+      const summaryEl = document.getElementById("summary");
+      const csvLink = document.getElementById("csvLink");
+      const jsonLink = document.getElementById("jsonLink");
+      const fileBody = document.getElementById("fileTableBody");
+      const fileMsg = document.getElementById("fileMsg");
+      const refreshBtn = document.getElementById("refreshBtn");
+      const retentionText = document.getElementById("retentionText");
+
+      const spotifySource = document.getElementById("spotifySource");
+      const spotifyName = document.getElementById("spotifyName");
+      const throttleMs = document.getElementById("throttleMs");
+      const startSpotifyBtn = document.getElementById("startSpotifyBtn");
+      const spotifyStatus = document.getElementById("spotifyStatus");
+      const progressBar = document.getElementById("progressBar");
+      const spotifyResult = document.getElementById("spotifyResult");
+      const spotifyPlaylistLink = document.getElementById("spotifyPlaylistLink");
+      const unmatchedLink = document.getElementById("unmatchedLink");
+
+      let pollTimer = null;
+
+      function fmtSize(size) {
+        if (size < 1024) return `${size} B`;
+        if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+        return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+      }
+
+      function fmtTime(ts) {
+        return new Date(ts * 1000).toLocaleString();
+      }
+
+      async function loadFiles() {
+        fileMsg.textContent = "正在加载文件列表...";
+        try {
+          const res = await fetch("/api/files");
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "加载失败");
+
+          retentionText.textContent = `服务端默认保留 ${data.retentionHours} 小时，之后自动清理。`;
+          fileBody.innerHTML = "";
+
+          if (!data.files.length) {
+            fileMsg.textContent = "暂无导出文件";
+            return;
+          }
+
+          for (const f of data.files) {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${f.name}</td>
+              <td>${fmtSize(f.size)}</td>
+              <td>${fmtTime(f.modifiedAt)}</td>
+              <td>
+                <a class="link" href="${f.downloadUrl}" target="_blank" rel="noreferrer">下载</a>
+                <button data-file="${encodeURIComponent(f.name)}">删除</button>
+              </td>
+            `;
+            fileBody.appendChild(tr);
+          }
+
+          fileMsg.textContent = `共 ${data.files.length} 个文件`;
+        } catch (err) {
+          fileMsg.textContent = `失败：${err.message}`;
+        }
+      }
+
+      async function deleteFile(encodedName) {
+        try {
+          const res = await fetch(`/api/files?file=${encodedName}`, { method: "DELETE" });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "删除失败");
+          await loadFiles();
+        } catch (err) {
+          fileMsg.textContent = `失败：${err.message}`;
+        }
+      }
+
+      async function handleExport() {
+        const value = input.value.trim();
+        if (!value) {
+          statusEl.textContent = "请先输入歌单链接或 ID";
+          return;
+        }
+
+        exportBtn.disabled = true;
+        resultEl.style.display = "none";
+        statusEl.textContent = "正在导出，请稍候...";
+
+        try {
+          const res = await fetch("/api/export", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ source: value }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "导出失败");
+
+          summaryEl.textContent = `歌单：${data.playlist.name}，共 ${data.playlist.trackCount} 首`;
+          csvLink.href = data.csvDownloadUrl;
+          jsonLink.href = data.jsonDownloadUrl;
+          resultEl.style.display = "block";
+          statusEl.textContent = "导出完成";
+
+          if (!spotifySource.value.trim()) {
+            spotifySource.value = value;
+          }
+
+          await loadFiles();
+        } catch (err) {
+          statusEl.textContent = `失败：${err.message}`;
+        } finally {
+          exportBtn.disabled = false;
+        }
+      }
+
+      function stopPolling() {
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      }
+
+      async function pollJob(jobId) {
+        try {
+          const res = await fetch(`/api/spotify/jobs?jobId=${encodeURIComponent(jobId)}`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "状态查询失败");
+
+          const p = data.progress || { processed: 0, total: 0, matched: 0, unmatched: 0 };
+          const percent = p.total > 0 ? Math.floor((p.processed / p.total) * 100) : 0;
+          progressBar.style.width = `${percent}%`;
+
+          spotifyStatus.textContent = `${data.message}\n进度：${p.processed}/${p.total}，已匹配 ${p.matched}，未匹配 ${p.unmatched}`;
+
+          if (data.status === "done") {
+            stopPolling();
+            spotifyResult.style.display = "block";
+            if (data.spotifyPlaylistUrl) spotifyPlaylistLink.href = data.spotifyPlaylistUrl;
+            if (data.unmatchedDownloadUrl) unmatchedLink.href = data.unmatchedDownloadUrl;
+            spotifyStatus.classList.add("good");
+            await loadFiles();
+          }
+
+          if (data.status === "error") {
+            stopPolling();
+            spotifyStatus.textContent = `导入失败：${data.message}`;
+          }
+        } catch (err) {
+          stopPolling();
+          spotifyStatus.textContent = `导入失败：${err.message}`;
+        }
+      }
+
+      async function startSpotifyImport() {
+        const source = spotifySource.value.trim();
+        if (!source) {
+          spotifyStatus.textContent = "请先输入歌单链接或 ID";
+          return;
+        }
+
+        startSpotifyBtn.disabled = true;
+        spotifyStatus.classList.remove("good");
+        spotifyResult.style.display = "none";
+        progressBar.style.width = "0%";
+        spotifyStatus.textContent = "正在创建导入任务...";
+
+        try {
+          const res = await fetch("/api/spotify/import/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              source,
+              playlistName: spotifyName.value.trim(),
+              throttleMs: Number(throttleMs.value || 260),
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "创建任务失败");
+
+          spotifyStatus.textContent = `已创建任务（${data.playlist.name} / ${data.playlist.trackCount} 首）。\n请在新窗口完成 Spotify 授权。`;
+
+          window.open(data.authUrl, "_blank", "noopener,noreferrer");
+
+          stopPolling();
+          pollTimer = setInterval(() => pollJob(data.jobId), 2000);
+          pollJob(data.jobId);
+        } catch (err) {
+          spotifyStatus.textContent = `失败：${err.message}`;
+        } finally {
+          startSpotifyBtn.disabled = false;
+        }
+      }
+
+      exportBtn.addEventListener("click", handleExport);
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") handleExport();
+      });
+      refreshBtn.addEventListener("click", loadFiles);
+      fileBody.addEventListener("click", (e) => {
+        if (e.target.tagName === "BUTTON" && e.target.dataset.file) {
+          deleteFile(e.target.dataset.file);
+        }
+      });
+      startSpotifyBtn.addEventListener("click", startSpotifyImport);
+
+      loadFiles();
+    </script>
+  </body>
+</html>

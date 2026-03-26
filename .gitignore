@@ -1,0 +1,12 @@
+# local secrets and auth cache
+.spotify_token_cache.json
+
+# local exports
+exports/
+
+# python cache
+__pycache__/
+*.pyc
+
+# editor temp files
+*.swp

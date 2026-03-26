@@ -1,0 +1,10 @@
+{
+  "name": "ncm-playlist-exporter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Export public NetEase Cloud Music playlists to CSV/JSON",
+  "scripts": {
+    "export": "node src/export-playlist.mjs"
+  }
+}
